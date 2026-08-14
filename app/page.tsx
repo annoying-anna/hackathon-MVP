@@ -3,8 +3,27 @@
 import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
+async function parsePDFClient(file: File): Promise<{ text: string; pages: number }> {
+  const pdfjsLib = await import("pdfjs-dist");
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let fullText = "";
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const pageText = content.items
+      .map((item) => ("str" in item ? item.str : ""))
+      .join(" ");
+    fullText += pageText + "\n\n";
+  }
+
+  return { text: fullText.trim(), pages: pdf.numPages };
+}
+
 export default function Home() {
-  const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<{
     text: string;
@@ -20,31 +39,18 @@ export default function Home() {
     setUploading(true);
     setError(null);
 
-    const formData = new FormData();
-    formData.append("file", selectedFile);
-
     try {
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
+      const { text, pages } = await parsePDFClient(selectedFile);
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Upload failed");
+      if (!text || text.trim().length === 0) {
+        throw new Error("Could not extract text from PDF. The file might be image-based.");
       }
 
-      setUploadResult({
-        text: data.text,
-        fileName: data.fileName,
-        pages: data.pages,
-      });
-
-      sessionStorage.setItem("courseMaterial", data.text);
-      sessionStorage.setItem("fileName", data.fileName);
+      setUploadResult({ text, fileName: selectedFile.name, pages });
+      sessionStorage.setItem("courseMaterial", text);
+      sessionStorage.setItem("fileName", selectedFile.name);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
+      setError(err instanceof Error ? err.message : "Failed to process PDF");
     } finally {
       setUploading(false);
     }
@@ -80,7 +86,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header */}
       <header className="bg-green-700 text-white py-4 px-6 shadow-lg">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -92,13 +97,10 @@ export default function Home() {
               <p className="text-green-200 text-sm">AI-Powered Learning</p>
             </div>
           </div>
-          <div className="text-sm text-green-200">
-            Built with Gemini AI
-          </div>
+          <div className="text-sm text-green-200">Built with Gemini AI</div>
         </div>
       </header>
 
-      {/* Hero Section */}
       <main className="flex-1 max-w-5xl mx-auto w-full px-6 py-12">
         <div className="text-center mb-12 animate-fade-in-up">
           <h2 className="text-4xl font-bold text-green-800 mb-4">
@@ -110,7 +112,6 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Upload Area */}
         {!uploadResult ? (
           <div className="max-w-2xl mx-auto">
             <div
@@ -165,7 +166,6 @@ export default function Home() {
             )}
           </div>
         ) : (
-          /* Upload Success */
           <div className="max-w-2xl mx-auto space-y-6">
             <div className="bg-white border border-green-200 rounded-2xl p-6 shadow-sm">
               <div className="flex items-center gap-3 mb-4">
@@ -192,7 +192,6 @@ export default function Home() {
               <button
                 onClick={() => {
                   setUploadResult(null);
-                  setFile(null);
                   sessionStorage.removeItem("courseMaterial");
                   sessionStorage.removeItem("fileName");
                 }}
@@ -210,7 +209,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Features */}
         <div className="mt-20 grid md:grid-cols-3 gap-8">
           {[
             {
@@ -243,7 +241,6 @@ export default function Home() {
         </div>
       </main>
 
-      {/* Footer */}
       <footer className="bg-green-800 text-green-200 py-4 px-6 text-center text-sm">
         RUET Study Buddy • Built for Build With AI @ RUET Hackathon
       </footer>
