@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { chatWithCourseMaterial, generateStudyPlan } from "@/lib/gemini";
 
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { question, courseMaterial, action } = body;
+
+    console.log("Chat API called:", { action, questionLength: question?.length, materialLength: courseMaterial?.length });
 
     if (!courseMaterial) {
       return NextResponse.json(
@@ -31,7 +36,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Chat error:", error);
     return NextResponse.json(
-      { error: "Failed to get response from AI" },
+      { error: error instanceof Error ? error.message : "Failed to get response from AI" },
       { status: 500 }
     );
   }

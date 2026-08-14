@@ -3,7 +3,7 @@ const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 
 async function callGemini(prompt: string): Promise<string> {
   if (!GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY is not configured");
+    throw new Error("GEMINI_API_KEY is not configured on Vercel");
   }
 
   const url = `${GEMINI_BASE_URL}/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
@@ -18,12 +18,20 @@ async function callGemini(prompt: string): Promise<string> {
 
   const data = await res.json();
 
+  console.log("Gemini API response status:", res.status);
+
   if (!res.ok) {
-    console.error("Gemini API error:", data);
-    throw new Error(data?.error?.message || "Gemini API request failed");
+    console.error("Gemini API error:", JSON.stringify(data));
+    throw new Error(data?.error?.message || `Gemini API failed with status ${res.status}`);
   }
 
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || "No response from AI";
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    console.error("No text in response:", JSON.stringify(data));
+    throw new Error("Gemini returned empty response");
+  }
+
+  return text;
 }
 
 export async function chatWithCourseMaterial(
