@@ -5,7 +5,12 @@ export const runtime = "nodejs";
 async function extractTextFromPDF(buffer: Buffer): Promise<{ text: string; pages: number }> {
   const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
 
-  const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buffer) });
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "";
+
+  const loadingTask = pdfjsLib.getDocument({
+    data: new Uint8Array(buffer),
+    isEvalSupported: false,
+  });
   const pdfDoc = await loadingTask.promise;
   const numPages = pdfDoc.numPages;
 
