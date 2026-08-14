@@ -6,7 +6,7 @@ async function callGemini(prompt: string): Promise<string> {
     throw new Error("GEMINI_API_KEY is not configured");
   }
 
-  const url = `${GEMINI_BASE_URL}/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+  const url = `${GEMINI_BASE_URL}/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
 
   const res = await fetch(url, {
     method: "POST",
