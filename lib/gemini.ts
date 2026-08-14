@@ -6,7 +6,7 @@ async function callGemini(prompt: string): Promise<string> {
     throw new Error("GEMINI_API_KEY is not configured on Vercel");
   }
 
-  const url = `${GEMINI_BASE_URL}/models/gemini-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
+  const url = `${GEMINI_BASE_URL}/models/gemini-3.1-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
 
   const res = await fetch(url, {
     method: "POST",
