@@ -1,5 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const runtime = "nodejs";
+
+async function extractTextFromPDF(buffer: Buffer): Promise<{ text: string; pages: number }> {
+  const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+
+  const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buffer) });
+  const pdfDoc = await loadingTask.promise;
+  const numPages = pdfDoc.numPages;
+
+  let fullText = "";
+
+  for (let i = 1; i <= numPages; i++) {
+    const page = await pdfDoc.getPage(i);
+    const content = await page.getTextContent();
+    const pageText = content.items
+      .map((item) => ("str" in item ? item.str : ""))
+      .join(" ");
+    fullText += pageText + "\n\n";
+  }
+
+  return { text: fullText.trim(), pages: numPages };
+}
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -19,10 +42,7 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    const pdf = (await import("pdf-parse")).default;
-    const data = await pdf(buffer);
-
-    const text = data.text;
+    const { text, pages } = await extractTextFromPDF(buffer);
 
     if (!text || text.trim().length === 0) {
       return NextResponse.json(
@@ -33,8 +53,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      text: text,
-      pages: data.numpages,
+      text,
+      pages,
       fileName: file.name,
     });
   } catch (error) {
