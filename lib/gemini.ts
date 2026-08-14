@@ -1,43 +1,62 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+async function callGemini(prompt: string): Promise<string> {
+  if (!GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY is not configured");
+  }
+
+  const url = `${GEMINI_BASE_URL}/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+    }),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    console.error("Gemini API error:", data);
+    throw new Error(data?.error?.message || "Gemini API request failed");
+  }
+
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || "No response from AI";
+}
 
 export async function chatWithCourseMaterial(
   question: string,
   courseMaterial: string
 ): Promise<string> {
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+  const truncatedMaterial = courseMaterial.substring(0, 30000);
 
   const prompt = `You are an intelligent study assistant for RUET (Rajshahi University of Engineering & Technology) students.
-
-Your job is to help students understand their course materials by answering questions accurately and clearly.
 
 RULES:
 1. ONLY answer based on the provided course material below.
 2. If the answer is not in the material, say "This topic is not covered in the uploaded material."
 3. Be concise but thorough.
 4. Use simple, student-friendly language.
-5. If the question is about a formula or concept, explain it step by step.
-6. Format your response nicely with line breaks and bullet points when helpful.
+5. Format your response nicely with line breaks and bullet points when helpful.
 
 COURSE MATERIAL:
 ---
-${courseMaterial}
+${truncatedMaterial}
 ---
 
 STUDENT QUESTION: ${question}
 
 Provide a clear, helpful answer:`;
 
-  const result = await model.generateContent(prompt);
-  const response = result.response;
-  return response.text();
+  return callGemini(prompt);
 }
 
 export async function generateStudyPlan(
   courseMaterial: string
 ): Promise<string> {
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+  const truncatedMaterial = courseMaterial.substring(0, 30000);
 
   const prompt = `You are a study planning assistant for RUET students.
 
@@ -49,11 +68,10 @@ Based on the following course material, create a structured study plan with:
 
 COURSE MATERIAL:
 ---
-${courseMaterial}
+${truncatedMaterial}
 ---
 
 Generate a clear, actionable study plan:`;
 
-  const result = await model.generateContent(prompt);
-  return result.response.text();
+  return callGemini(prompt);
 }
